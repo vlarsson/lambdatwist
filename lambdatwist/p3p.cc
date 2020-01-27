@@ -1,12 +1,41 @@
+// Copyright (c) 2020, Viktor Larsson
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//
+//     * Neither the name of the copyright holder nor the
+//       names of its contributors may be used to endorse or promote products
+//       derived from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 #include "p3p.h"
 
 #include <iostream>
 
 namespace lambdatwist {
 
-
+    // Computes the eigen decomposition of a 3x3 matrix given that one eigenvalue is zero.
     void compute_eig3x3known0(const Eigen::Matrix3d &M, Eigen::Matrix3d &E, double &sig1, double &sig2) {
 
+        // In the original paper there is a missing minus sign here (for M(0,0))
         double p1 = -M(0,0) - M(1,1) - M(2,2);
         double p0 = -M(0,1)*M(0,1) - M(0,2)*M(0,2) - M(1,2)*M(1,2) + M(0,0) * (M(1,1) + M(2,2)) + M(1,1)*M(2,2);
 
@@ -61,8 +90,6 @@ namespace lambdatwist {
     // Solves for camera pose such that: lambda*x = R*X+t  with positive lambda.
     int p3p(const std::vector<Eigen::Vector3d> &x, const std::vector<Eigen::Vector3d> &X, std::vector<CameraPose> *output) 
     {
-
-
         Eigen::Vector3d dX12 = X[0]-X[1];
         Eigen::Vector3d dX13 = X[0]-X[2];
         Eigen::Vector3d dX23 = X[1]-X[2];
@@ -90,6 +117,8 @@ namespace lambdatwist {
         DX1 << D1.col(1).cross(D1.col(2)), D1.col(2).cross(D1.col(0)), D1.col(0).cross(D1.col(1));
         DX2 << D2.col(1).cross(D2.col(2)), D2.col(2).cross(D2.col(0)), D2.col(0).cross(D2.col(1));
 
+        // Coefficients of p(gamma) = det(D1 + gamma*D2)
+        // In the original paper c2 and c1 are switched.
         double c3 = D2.col(0).dot(DX2.col(0));
         double c2 = (D1.array() * DX2.array()).sum();
         double c1 = (D2.array() * DX1.array()).sum();
@@ -170,9 +199,6 @@ namespace lambdatwist {
                 lambda3 = tau * lambda2;
                 lambda1 = w0p * lambda2 + w1p * lambda3;
 
-                
-
-
                 if(lambda1 > 0) {
                     refine_lambda(lambda1, lambda2, lambda3, a12, a13, a23, b12, b13, b23);
                     v1 = lambda1*x[0] - lambda2*x[1];
@@ -192,8 +218,6 @@ namespace lambdatwist {
                 lambda3 = tau * lambda2;
                 lambda1 = w0p * lambda2 + w1p * lambda3;
 
-                
-
                 if(lambda1 > 0) {
                     refine_lambda(lambda1, lambda2, lambda3, a12, a13, a23, b12, b13, b23);
                     v1 = lambda1*x[0] - lambda2*x[1];
@@ -204,7 +228,6 @@ namespace lambdatwist {
                     output->push_back(pose);
                 }
             }
-
         }
 
 
@@ -215,13 +238,12 @@ namespace lambdatwist {
             double sq = std::sqrt(b2m4ac);
 
             // first root
-            double tau =  (bn > 0) ? (2.0 * cn) / (-bn - sq) : (2 * cn) / (-bn + sq);
+            double tau =  (bn > 0) ? (2.0 * cn) / (-bn - sq) : (2.0 * cn) / (-bn + sq);
 
             if(tau > 0) {
                 lambda2 = std::sqrt(a23 / (tau*(tau-2.0*b23)+1.0));
                 lambda3 = tau * lambda2;
                 lambda1 = w0n * lambda2 + w1n * lambda3;
-
                 
                 if(lambda1 > 0) {
                     refine_lambda(lambda1, lambda2, lambda3, a12, a13, a23, b12, b13, b23);
@@ -241,8 +263,6 @@ namespace lambdatwist {
                 lambda2 = std::sqrt(a23 / (tau*(tau-2.0*b23)+1.0));
                 lambda3 = tau * lambda2;
                 lambda1 = w0n * lambda2 + w1n * lambda3;
-
-                
 
                 if(lambda1 > 0) {
                     refine_lambda(lambda1, lambda2, lambda3, a12, a13, a23, b12, b13, b23);
