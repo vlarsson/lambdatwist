@@ -63,6 +63,17 @@ void setup_instance(std::vector<Eigen::Vector3d> &x, std::vector<Eigen::Vector3d
     }
 }
 
+bool is_valid(const CameraPose &pose, const std::vector<Eigen::Vector3d> &x, const std::vector<Eigen::Vector3d> &X) {
+    for(int k = 0; k < x.size(); ++k) {
+        Eigen::Vector3d z = pose.R * X[k] + pose.t;
+        double res = std::abs(1 - x[k].normalized().dot(z.normalized()));
+        if(res > 1e-8) {        
+            return false;
+        }
+    }
+    return true;
+}
+
 bool test_simple_instance() {
     Eigen::Vector3d y1, y2, y3, X1, X2, X3;
 
@@ -87,7 +98,8 @@ bool test_simple_instance() {
     p3p(x,X, &poses);
 
       for(CameraPose &pose : poses) {
-       
+        if(!is_valid(pose,x,X))
+            return false;
         double err_R = (pose.R - Eigen::Matrix3d::Identity()).norm();
         double err_t = (pose.t - Eigen::Vector3d::Zero()).norm();
         
@@ -114,6 +126,8 @@ bool test_random_instance() {
     REQUIRE( n_sols > 0 );
 
     for(CameraPose &pose : poses) {
+        if(!is_valid(pose,x,X))
+            return false;
         double err_R = (pose.R - pose_gt.R).norm();
         double err_t = (pose.t - pose_gt.t).norm();
 
@@ -126,19 +140,66 @@ bool test_random_instance() {
 
 }
 
+
+// Test case related to issue
+// https://github.com/vlarsson/lambdatwist/issues/1
+bool test_simple_instance2() {
+    Eigen::Vector3d y1, y2, y3, X1, X2, X3;
+
+    y1 << 0.0, 0.0, 1.0;
+    y2 << 2.0, 0.0, 1.0;
+    y3 << 0.0, 2.0, 1.0;
+    
+    y1.normalize();
+    y2.normalize();
+    y3.normalize();
+
+    X1 << 0.0, 0.0, 0.0;
+    X2 << 1.0, 0.0, 0.0;
+    X3 << 0.0, 1.0, 0.0;
+    
+    std::vector<Eigen::Vector3d> x{y1,y2,y3};
+    std::vector<Eigen::Vector3d> X{X1,X2,X3};
+
+
+    std::vector<CameraPose> poses;
+
+    p3p(x,X, &poses);
+
+    Eigen::Matrix3d R_gt;
+    R_gt.setIdentity();
+    Eigen::Vector3d t_gt;
+    t_gt << 0.0, 0.0, 0.5;
+
+    for(CameraPose &pose : poses) {
+        if(!is_valid(pose,x,X))
+            return false;
+        double err_R = (pose.R - R_gt).norm();
+        double err_t = (pose.t - t_gt).norm();
+
+        if( err_R < 1e-8 && err_t < 1e-8)
+            return true;        
+    }
+
+    return false;
+}
+
 int main() {
     unsigned int seed = (unsigned int)time(0);	
-	srand(seed);
-
+    srand(seed);
+    
 	std::cout << "Running tests... (seed = " << seed << ")\n\n";
 
 	int passed = 0;
 	int num_tests = 0;
-	
+
     for(int i = 0; i < 10; ++i) {
 	    TEST(test_random_instance);
     }
+
 	TEST(test_simple_instance);
+
+    TEST(test_simple_instance2);
 
 	std::cout << "\nDone! Passed " << passed << "/" << num_tests << " tests.\n";
 }
